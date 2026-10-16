@@ -20,7 +20,7 @@ Then, from your project's folder, the one holding `CMakeLists.txt` and `main/`:
 esp32-installer nimaltd/esp32-installer-example
 ```
 
-Press Enter at its questions, and the library goes into `components/example/` as an ESP-IDF component, with a `CMakeLists.txt` and a `Kconfig` the installer writes for it. Your own files are left as they are, unless your `main` lists the components it uses, in which case `example` is added to the list.
+Press Enter at its questions, and the library goes into `components/example/` as an ESP-IDF component, with a `CMakeLists.txt` and a `Kconfig` the installer writes for it. Your own files are left as they are, unless your `main` lists the components it uses, or your project builds only what `main` names, as ESP-IDF's examples do. Then `example` is added to main's list.
 
 Then use it in `main/main.c`:
 

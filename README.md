@@ -4,6 +4,12 @@ A small library made to try [esp32-installer](https://github.com/nimaltd/esp32-i
 
 It does one useful thing. `example_due()` says yes once every `CONFIG_EXAMPLE_PERIOD_MS` milliseconds and never blocks, so a loop can blink an LED, read a sensor or print a line on a rhythm without sleeping. `example_hello()` prints `CONFIG_EXAMPLE_GREETING`. Both settings are Kconfig symbols, in `idf.py menuconfig`. Its `uptime` option adds `example_uptime()`, the time since start up in hours, minutes and seconds.
 
+It also uses what esp32-installer 2.0.0 brings, so you can see each of them work:
+
+- **A file made once.** Its settings come in `example.defaults`, made in your project's folder and yours from then on. No install writes over it.
+- **Groups of CMake lines.** One in your `CMakeLists.txt`, above `include(project.cmake)`, adds `example.defaults` to `SDKCONFIG_DEFAULTS`. One in its component puts your project's folder on the library's include path.
+- **A step it runs.** `make-id` makes `example_id.h`, this device's own ID, a random number. The installer shows what it runs and asks first.
+
 ---
 
 ## Try the installer with it
@@ -14,13 +20,26 @@ Install the installer once:
 pip install esp32-installer
 ```
 
+It needs esp32-installer 2.0.0 or newer. `pip install --upgrade esp32-installer` brings an older one up to date.
+
 Then, from your project's folder, the one holding `CMakeLists.txt` and `main/`:
 
 ```bash
 esp32-installer nimaltd/esp32-installer-example
 ```
 
-Press Enter at its questions, and the library goes into `components/example/` as an ESP-IDF component, with a `CMakeLists.txt` and a `Kconfig` the installer writes for it. Your own files are left as they are, unless your `main` lists the components it uses, or your project builds only what `main` names, as ESP-IDF's examples do. Then `example` is added to main's list.
+Press Enter at its questions, and the library goes into `components/example/` as an ESP-IDF component, with a `CMakeLists.txt` and a `Kconfig` the installer writes for it. Your `CMakeLists.txt` gets the block that adds `example.defaults`, and `example.defaults` is made. When your `main` lists the components it uses, or your project builds only what `main` names, as ESP-IDF's examples do, `example` is added to main's list too. Last, it asks about its step:
+
+```
+Run
+  make-id      Make this device's own ID, example_id.h
+               python scripts/make_id.py example_id.h
+               Run it? [Y/n]:
+Made example_id.h: device C6E43235.
+               done
+```
+
+Enter runs it, and `example_id.h` is in your project's folder, with a number of its own.
 
 Then use it in `main/main.c`:
 
@@ -55,21 +74,37 @@ idf.py build flash monitor
 ```
 
 ```
-Hello from example 1
-Hello from example 2
-Hello from example 3
+Hello from example 1, device C6E43235
+Hello from example 2, device C6E43235
+Hello from example 3, device C6E43235
 ```
 
 ### Things to try
 
-**Change a setting.** The settings are Kconfig symbols. Set them in `idf.py menuconfig`, under **example**, and build again. Or set them in `sdkconfig.defaults`, which ESP-IDF reads when it makes a fresh `sdkconfig`:
+**Change a setting.** The settings are Kconfig symbols. Set them in `idf.py menuconfig`, under **example**, and build again. Or set them in `example.defaults`, the file the install made, which ESP-IDF reads after `sdkconfig.defaults` when it makes a fresh `sdkconfig`:
 
 ```
 CONFIG_EXAMPLE_PERIOD_MS=100
 CONFIG_EXAMPLE_GREETING="Hi"
 ```
 
-Run the install command again, and your settings are still there: the installer never touches `sdkconfig`, and writes only its own block in `sdkconfig.defaults`.
+Run the install command again, and your settings are still there: the output says `kept example.defaults  yours`, and the installer never touches `sdkconfig`.
+
+**Its device ID.** Run the install again, and the step is not asked about: `make-id skipped, example_id.h is already there`, so the ID never changes under you. Delete `example_id.h`, and the next install asks again and makes a new one. Answer for it on the command line instead, with `--run make-id` to run it or `--no-run make-id` to leave it, and `--yes` takes every answer offered, for a script. Nobody to answer, and it is not run; then `example_id()` is 0.
+
+**Look at what it wrote.** Each group of CMake lines sits between two lines naming it, so you can find it, and the next install writes it again:
+
+```cmake
+# >>> esp32-installer: example/defaults >>>
+# From example's installer.yml, and written again on every install.
+if(NOT SDKCONFIG_DEFAULTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
+    set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
+endif()
+list(APPEND SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/example.defaults")
+# <<< esp32-installer: example/defaults <<<
+```
+
+Once `SDKCONFIG_DEFAULTS` is set, ESP-IDF reads only the files it names, which is why the group names `sdkconfig.defaults` first. The other group, `example/id`, is in `components/example/CMakeLists.txt`, and puts your project's folder on the library's include path, which is how `example.c` finds `example_id.h`.
 
 **Add a part, and take it out.** `--with uptime` adds `example_uptime.h` and `example_uptime.c` to the component. `--without uptime` takes them out again.
 
@@ -81,7 +116,7 @@ esp32-installer nimaltd/esp32-installer-example --with uptime
 example_uptime_t up = example_uptime();   /* up.hours, up.minutes, up.seconds */
 ```
 
-**Uninstall it.** Whatever the installer added to your files goes, so they are back as they were, and the library's files go. A setting of its you set yourself in `sdkconfig.defaults` is named, for you to take out:
+**Uninstall it.** Whatever the installer added to your files goes, so they are back as they were, and the library's files go. `example.defaults` and `example_id.h` stay, since they are yours, and `example.defaults` is no longer read. A setting of its you set yourself in `sdkconfig.defaults` is named, for you to take out:
 
 ```bash
 esp32-installer --uninstall example
@@ -105,7 +140,7 @@ Then anyone installs your library with:
 esp32-installer yourname/yourlibrary
 ```
 
-Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and your code reads it as `CONFIG_<name>` from `sdkconfig.h`. List the ESP-IDF components your code uses under `esp32.requires`, as this one lists `esp_timer`. The [esp32-installer README](https://github.com/nimaltd/esp32-installer#for-someone-writing-a-library) has the rest.
+Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and your code reads it as `CONFIG_<name>` from `sdkconfig.h`. List the ESP-IDF components your code uses under `esp32.requires`, as this one lists `esp_timer`. `once` lists files for the project's own folder, `run` the steps run after the install, with the script in [`scripts/make_id.py`](scripts/make_id.py), and `esp32.cmake` the groups of CMake lines with where each goes. The [esp32-installer README](https://github.com/nimaltd/esp32-installer#for-someone-writing-a-library) has the rest.
 
 ---
 
@@ -116,7 +151,8 @@ Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and yo
 | `void example_init(example_t *handle)` | Start a period of `CONFIG_EXAMPLE_PERIOD_MS` from now |
 | `bool example_due(example_t *handle)` | Whether the period has passed. Returns at once, and starts the next one when it has |
 | `uint32_t example_count(const example_t *handle)` | How many times `example_due()` has said yes |
-| `void example_hello(const example_t *handle)` | Print `CONFIG_EXAMPLE_GREETING`, and how many periods have passed |
+| `uint32_t example_id(void)` | This device's own ID, from `example_id.h`, or 0 when the step was not run |
+| `void example_hello(const example_t *handle)` | Print `CONFIG_EXAMPLE_GREETING`, how many periods have passed, and the device's ID |
 | `example_uptime_t example_uptime(void)` | With the `uptime` option: hours, minutes and seconds since start up |
 
 Declare one `example_t` for each thing that repeats on its own rhythm. A loop that comes back late is caught up, so the rhythm does not drift.

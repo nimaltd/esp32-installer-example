@@ -20,10 +20,16 @@ category: timing                   # sensor, storage, display, communication, wi
 provides: []                       # what it gives other libraries: [rtos] for an RTOS
 
 requires:
-  esp32_installer: 1.0.0           # the oldest esp32-installer that reads this file
+  esp32_installer: 2.0.0           # the oldest esp32-installer that reads this file;
+                                   # 2.0.0 for once, run and the cmake groups below
   libraries: []                    # other libraries, installed first when missing:
-                                   #   - osal >= 1.0.0   no owner means nimaltd
-                                   #   - owner/lib       anyone else's
+                                   #   - osal >= 1.0.0       no owner means nimaltd
+                                   #   - owner/lib           anyone else's
+                                   #   - owner/lib@v1.2.0    a tag, branch or commit
+                                   #   - source: owner/other@v2.0.0
+                                   #     manifest: manifests/other.yml
+                                   #                         for a repository with no
+                                   #                         installer.yml of its own
   kconfig: []                      # symbols it needs, set in sdkconfig.defaults:
                                    #   - FREERTOS_HZ=1000   SYMBOL=value, or a symbol
                                    #                        alone for =y
@@ -59,11 +65,39 @@ extras:                            # copied as they are, never compiled
   - NOTICE
   - README.md
 
+once:                              # the project's own files, made when missing and
+                                   # the user's from then on: never replaced or removed
+  - from: project/example.defaults # its settings, added to the build by the defaults
+                                   # group below; to: its place, when not its own name
+
+run:                               # steps run once the files are in, each asked first
+  - label: make-id                 # the name typed after --run and --no-run
+    description: Make this device's own ID, example_id.h   # shown with the question
+    script: scripts/make_id.py     # Python, run with the installer's own Python,
+                                   # or command: [program, arguments], with no shell
+    args: [example_id.h]           # given to the script, in the project's folder
+    unless: example_id.h           # skipped when this file is there already
+
 esp32:                             # read by esp32-installer only
   requires:                        # ESP-IDF components the code uses: its REQUIRES
     - esp_timer
-  # cmake:                         # lines of CMake added to its CMakeLists.txt
-  #   - target_compile_options(${COMPONENT_LIB} PRIVATE -O2)
+  cmake:                           # groups of CMake lines, each in a place of its own
+    - label: id                    # names the group, between markers of its own
+      where: component             # the component's CMakeLists.txt, after its register
+      lines:                       # the project's folder, where example_id.h is made
+        - idf_build_get_property(example_project PROJECT_DIR)
+        - target_include_directories(${COMPONENT_LIB} PRIVATE "${example_project}")
+    - label: defaults              # ESP-IDF reads sdkconfig.defaults only while
+      where: before-project        # SDKCONFIG_DEFAULTS is unset, so it is named first
+      lines:
+        - if(NOT SDKCONFIG_DEFAULTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
+        - '    set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")'
+        - endif()
+        - list(APPEND SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/example.defaults")
+    # - label: report
+    #   where: after-project       # the project's CMakeLists.txt, at its end
+    #   lines:
+    #     - 'message(STATUS "example is in")'
   settings:                        # Kconfig symbols for menuconfig, CONFIG_<name> in the code
     - name: EXAMPLE_PERIOD_MS      # the symbol, started with the library's name
       type: int                    # bool, int, hex or string

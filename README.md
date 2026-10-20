@@ -4,11 +4,11 @@ A small library made to try [esp32-installer](https://github.com/nimaltd/esp32-i
 
 It does one useful thing. `example_due()` says yes once every `CONFIG_EXAMPLE_PERIOD_MS` milliseconds and never blocks, so a loop can blink an LED, read a sensor or print a line on a rhythm without sleeping. `example_hello()` prints `CONFIG_EXAMPLE_GREETING`. Both settings are Kconfig symbols, in `idf.py menuconfig`. Its `uptime` option adds `example_uptime()`, the time since start up in hours, minutes and seconds.
 
-It also uses what esp32-installer 2.0.0 brings, so you can see each of them work:
+It also uses what esp32-installer 2.0.0 and 2.1.0 bring, so you can see each of them work:
 
 - **A file made once.** Its settings come in `example.defaults`, made in your project's folder and yours from then on. No install writes over it.
-- **Groups of CMake lines.** One in your `CMakeLists.txt`, above `include(project.cmake)`, adds `example.defaults` to `SDKCONFIG_DEFAULTS`. One in its component puts your project's folder on the library's include path.
-- **A step it runs.** `make-id` makes `example_id.h`, this device's own ID, a random number. The installer shows what it runs and asks first.
+- **Lines of CMake by place.** Under `before-project`, lines in your `CMakeLists.txt`, above `include(project.cmake)`, add `example.defaults` to `SDKCONFIG_DEFAULTS`. Under `component`, one puts your project's folder on the library's include path.
+- **A step it runs.** `make-id` makes `example_id.h`, this device's own ID, a random number. The installer shows what it runs and asks first. Its script, `tools/make_id.py`, comes into your project's folder as the library's own.
 
 ---
 
@@ -20,7 +20,7 @@ Install the installer once:
 pip install esp32-installer
 ```
 
-It needs esp32-installer 2.0.0 or newer. `pip install --upgrade esp32-installer` brings an older one up to date.
+It needs esp32-installer 2.1.0 or newer. `pip install --upgrade esp32-installer` brings an older one up to date.
 
 Then, from your project's folder, the one holding `CMakeLists.txt` and `main/`:
 
@@ -33,7 +33,7 @@ Press Enter at its questions, and the library goes into `components/example/` as
 ```
 Run
   make-id      Make this device's own ID, example_id.h
-               python scripts/make_id.py example_id.h
+               python tools/make_id.py example_id.h
                Run it? [Y/n]:
 Made example_id.h: device C6E43235.
                done
@@ -92,19 +92,19 @@ Run the install command again, and your settings are still there: the output say
 
 **Its device ID.** Run the install again, and the step is not asked about: `make-id skipped, example_id.h is already there`, so the ID never changes under you. Delete `example_id.h`, and the next install asks again and makes a new one. Answer for it on the command line instead, with `--run make-id` to run it or `--no-run make-id` to leave it, and `--yes` takes every answer offered, for a script. Nobody to answer, and it is not run; then `example_id()` is 0.
 
-**Look at what it wrote.** Each group of CMake lines sits between two lines naming it, so you can find it, and the next install writes it again:
+**Look at what it wrote.** The lines of each place sit between two lines naming it, so you can find them, and the next install writes them again:
 
 ```cmake
-# >>> esp32-installer: example/defaults >>>
+# >>> esp32-installer: example/before-project >>>
 # From example's installer.yml, and written again on every install.
 if(NOT SDKCONFIG_DEFAULTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
     set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
 endif()
 list(APPEND SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/example.defaults")
-# <<< esp32-installer: example/defaults <<<
+# <<< esp32-installer: example/before-project <<<
 ```
 
-Once `SDKCONFIG_DEFAULTS` is set, ESP-IDF reads only the files it names, which is why the group names `sdkconfig.defaults` first. The other group, `example/id`, is in `components/example/CMakeLists.txt`, and puts your project's folder on the library's include path, which is how `example.c` finds `example_id.h`.
+Once `SDKCONFIG_DEFAULTS` is set, ESP-IDF reads only the files it names, which is why these lines name `sdkconfig.defaults` first. The component's, `example/component`, are in `components/example/CMakeLists.txt`, and puts your project's folder on the library's include path, which is how `example.c` finds `example_id.h`.
 
 **Add a part, and take it out.** `--with uptime` adds `example_uptime.h` and `example_uptime.c` to the component. `--without uptime` takes them out again.
 
@@ -116,7 +116,7 @@ esp32-installer nimaltd/esp32-installer-example --with uptime
 example_uptime_t up = example_uptime();   /* up.hours, up.minutes, up.seconds */
 ```
 
-**Uninstall it.** Whatever the installer added to your files goes, so they are back as they were, and the library's files go. `example.defaults` and `example_id.h` stay, since they are yours, and `example.defaults` is no longer read. A setting of its you set yourself in `sdkconfig.defaults` is named, for you to take out:
+**Uninstall it.** Whatever the installer added to your files goes, so they are back as they were, and the library's files go, `tools/make_id.py` with them. `example.defaults` and `example_id.h` stay, since they are yours, and `example.defaults` is no longer read. A setting of its you set yourself in `sdkconfig.defaults` is named, for you to take out:
 
 ```bash
 esp32-installer --uninstall example
@@ -140,7 +140,7 @@ Then anyone installs your library with:
 esp32-installer yourname/yourlibrary
 ```
 
-Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and your code reads it as `CONFIG_<name>` from `sdkconfig.h`. List the ESP-IDF components your code uses under `esp32.requires`, as this one lists `esp_timer`. `once` lists files for the project's own folder, `run` the steps run after the install, with the script in [`scripts/make_id.py`](scripts/make_id.py), and `esp32.cmake` the groups of CMake lines with where each goes. The [esp32-installer README](https://github.com/nimaltd/esp32-installer#for-someone-writing-a-library) has the rest.
+Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and your code reads it as `CONFIG_<name>` from `sdkconfig.h`. List the ESP-IDF components your code uses under `esp32.requires`, as this one lists `esp_timer`. `once` lists files for the project's own folder, `run` the steps run after the install, with the script in [`tools/make_id.py`](tools/make_id.py), and `esp32.cmake` the lines of CMake under the place each goes. The [esp32-installer README](https://github.com/nimaltd/esp32-installer#for-someone-writing-a-library) has the rest.
 
 ---
 

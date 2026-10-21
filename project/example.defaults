@@ -1,4 +1,4 @@
-# example's settings, made once by esp32-installer and yours from now on.
+# example's settings, made once by lib-installer and yours from now on.
 # No install writes over this file. The project's CMakeLists.txt adds it to
 # SDKCONFIG_DEFAULTS, after sdkconfig.defaults, so a setting here wins. Like
 # any defaults file, it counts for a symbol sdkconfig does not have yet.

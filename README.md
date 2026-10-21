@@ -1,10 +1,10 @@
-# esp32-installer-example
+# lib-installer-esp32
 
-A small library made to try [esp32-installer](https://github.com/nimaltd/esp32-installer) on, and a starting point for making your own library installable into an ESP-IDF project.
+A small library made to try [lib-installer](https://github.com/nimaltd/lib-installer) on, and a starting point for making your own library installable into an ESP-IDF project.
 
 It does one useful thing. `example_due()` says yes once every `CONFIG_EXAMPLE_PERIOD_MS` milliseconds and never blocks, so a loop can blink an LED, read a sensor or print a line on a rhythm without sleeping. `example_hello()` prints `CONFIG_EXAMPLE_GREETING`. Both settings are Kconfig symbols, in `idf.py menuconfig`. Its `uptime` option adds `example_uptime()`, the time since start up in hours, minutes and seconds.
 
-It also uses what esp32-installer 2.0.0 and 2.1.0 bring, so you can see each of them work:
+It also uses what installer.yml gained in 2.0.0 and 2.1.0, so you can see each of them work:
 
 - **A file made once.** Its settings come in `example.defaults`, made in your project's folder and yours from then on. No install writes over it.
 - **Lines of CMake by place.** Under `before-project`, lines in your `CMakeLists.txt`, above `include(project.cmake)`, add `example.defaults` to `SDKCONFIG_DEFAULTS`. Under `component`, one puts your project's folder on the library's include path.
@@ -17,15 +17,15 @@ It also uses what esp32-installer 2.0.0 and 2.1.0 bring, so you can see each of 
 Install the installer once:
 
 ```bash
-pip install esp32-installer
+pip install lib-installer
 ```
 
-It needs esp32-installer 2.1.0 or newer. `pip install --upgrade esp32-installer` brings an older one up to date.
+It needs lib-installer 3.0.0 or newer. `pip install --upgrade lib-installer` brings an older one up to date.
 
 Then, from your project's folder, the one holding `CMakeLists.txt` and `main/`:
 
 ```bash
-esp32-installer nimaltd/esp32-installer-example
+lib-installer nimaltd/lib-installer-esp32
 ```
 
 Press Enter at its questions, and the library goes into `components/example/` as an ESP-IDF component, with a `CMakeLists.txt` and a `Kconfig` the installer writes for it. Your `CMakeLists.txt` gets the block that adds `example.defaults`, and `example.defaults` is made. When your `main` lists the components it uses, or your project builds only what `main` names, as ESP-IDF's examples do, `example` is added to main's list too. Last, it asks about its step:
@@ -95,13 +95,13 @@ Run the install command again, and your settings are still there: the output say
 **Look at what it wrote.** The lines of each place sit between two lines naming it, so you can find them, and the next install writes them again:
 
 ```cmake
-# >>> esp32-installer: example/before-project >>>
+# >>> lib-installer: example/before-project >>>
 # From example's installer.yml, and written again on every install.
 if(NOT SDKCONFIG_DEFAULTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
     set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
 endif()
 list(APPEND SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/example.defaults")
-# <<< esp32-installer: example/before-project <<<
+# <<< lib-installer: example/before-project <<<
 ```
 
 Once `SDKCONFIG_DEFAULTS` is set, ESP-IDF reads only the files it names, which is why these lines name `sdkconfig.defaults` first. The component's, `example/component`, are in `components/example/CMakeLists.txt`, and puts your project's folder on the library's include path, which is how `example.c` finds `example_id.h`.
@@ -109,7 +109,7 @@ Once `SDKCONFIG_DEFAULTS` is set, ESP-IDF reads only the files it names, which i
 **Add a part, and take it out.** `--with uptime` adds `example_uptime.h` and `example_uptime.c` to the component. `--without uptime` takes them out again.
 
 ```bash
-esp32-installer nimaltd/esp32-installer-example --with uptime
+lib-installer nimaltd/lib-installer-esp32 --with uptime
 ```
 
 ```c
@@ -119,13 +119,13 @@ example_uptime_t up = example_uptime();   /* up.hours, up.minutes, up.seconds */
 **Uninstall it.** Whatever the installer added to your files goes, so they are back as they were, and the library's files go, `tools/make_id.py` with them. `example.defaults` and `example_id.h` stay, since they are yours, and `example.defaults` is no longer read. A setting of its you set yourself in `sdkconfig.defaults` is named, for you to take out:
 
 ```bash
-esp32-installer --uninstall example
+lib-installer --uninstall example
 ```
 
 **Without internet.** Download this repository as a zip, from the green **Code** button, **Download ZIP**, and give the installer the zip instead of the name:
 
 ```bash
-esp32-installer D:/Downloads/esp32-installer-example-main.zip
+lib-installer D:/Downloads/lib-installer-esp32-main.zip
 ```
 
 ---
@@ -137,10 +137,10 @@ Copy [`installer.yml`](installer.yml) to the root of your library's repository, 
 Then anyone installs your library with:
 
 ```bash
-esp32-installer yourname/yourlibrary
+lib-installer yourname/yourlibrary
 ```
 
-Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and your code reads it as `CONFIG_<name>` from `sdkconfig.h`. List the ESP-IDF components your code uses under `esp32.requires`, as this one lists `esp_timer`. `once` lists files for the project's own folder, `run` the steps run after the install, with the script in [`tools/make_id.py`](tools/make_id.py), and `esp32.cmake` the lines of CMake under the place each goes. The [esp32-installer README](https://github.com/nimaltd/esp32-installer#for-someone-writing-a-library) has the rest.
+Each entry under `esp32.settings` becomes a Kconfig symbol in menuconfig, and your code reads it as `CONFIG_<name>` from `sdkconfig.h`. List the ESP-IDF components your code uses under `esp32.requires`, as this one lists `esp_timer`. `once` lists files for the project's own folder, `run` the steps run after the install, with the script in [`tools/make_id.py`](tools/make_id.py), and `esp32.cmake` the lines of CMake under the place each goes. The [lib-installer README](https://github.com/nimaltd/lib-installer#for-someone-writing-a-library) has the rest.
 
 ---
 

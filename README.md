@@ -1,4 +1,4 @@
-# lib-installer-esp32
+# lib-installer-example-esp32
 
 A small library made to try [lib-installer](https://github.com/nimaltd/lib-installer) on, and a starting point for making your own library installable into an ESP-IDF project.
 
@@ -25,7 +25,7 @@ It needs lib-installer 3.0.0 or newer. `pip install --upgrade lib-installer` bri
 Then, from your project's folder, the one holding `CMakeLists.txt` and `main/`:
 
 ```bash
-lib-installer nimaltd/lib-installer-esp32
+lib-installer nimaltd/lib-installer-example-esp32
 ```
 
 Press Enter at its questions, and the library goes into `components/example/` as an ESP-IDF component, with a `CMakeLists.txt` and a `Kconfig` the installer writes for it. Your `CMakeLists.txt` gets the block that adds `example.defaults`, and `example.defaults` is made. When your `main` lists the components it uses, or your project builds only what `main` names, as ESP-IDF's examples do, `example` is added to main's list too. Last, it asks about its step:
@@ -109,7 +109,7 @@ Once `SDKCONFIG_DEFAULTS` is set, ESP-IDF reads only the files it names, which i
 **Add a part, and take it out.** `--with uptime` adds `example_uptime.h` and `example_uptime.c` to the component. `--without uptime` takes them out again.
 
 ```bash
-lib-installer nimaltd/lib-installer-esp32 --with uptime
+lib-installer nimaltd/lib-installer-example-esp32 --with uptime
 ```
 
 ```c
@@ -125,7 +125,7 @@ lib-installer --uninstall example
 **Without internet.** Download this repository as a zip, from the green **Code** button, **Download ZIP**, and give the installer the zip instead of the name:
 
 ```bash
-lib-installer D:/Downloads/lib-installer-esp32-main.zip
+lib-installer D:/Downloads/lib-installer-example-esp32-main.zip
 ```
 
 ---

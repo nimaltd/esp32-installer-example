@@ -9,9 +9,12 @@
 # There is no version here. The installer reads it from the @version tag in
 # the first header listed, so the source files are the only place it is written.
 #
-# Written for 3.0.0: every file keeps the path it has here, src/example.h
+# Written for 4.0.0: every file keeps the path it has here, src/example.h
 # lands at components/example/src/example.h, and every path naming a place in
-# the project starts at the project's folder.
+# the project starts at the project's folder. What the library writes sits
+# under where it goes, esp32.project for the project's own files and
+# esp32.library for its component, and a list can be given in groups under
+# their titles, a symbol with a note.
 
 name: example                      # the library's name, its component and its folder
 description: A period that never blocks, made to try lib-installer on
@@ -27,7 +30,7 @@ category: timing                   # sensor, storage, display, communication, wi
 provides: []                       # what it gives other libraries: [rtos] for an RTOS
 
 requires:
-  lib_installer: 3.0.0             # the oldest lib-installer that reads this file
+  lib_installer: 4.0.0             # the oldest lib-installer that reads this file
   libraries: []                    # other libraries, installed first when missing:
                                    #   - osal >= 1.0.0       no owner means nimaltd
                                    #   - owner/lib           anyone else's
@@ -36,9 +39,6 @@ requires:
                                    #     manifest: manifests/other.yml
                                    #                         for a repository with no
                                    #                         installer.yml of its own
-  kconfig: []                      # symbols it needs, set in sdkconfig.defaults:
-                                   #   - FREERTOS_HZ=1000   SYMBOL=value, or a symbol
-                                   #                        alone for =y
   peripherals: []                  # hardware it uses, named to the user, such as:
                                    #   - type: i2c
                                    #     note: 400 kHz
@@ -89,22 +89,6 @@ run:                               # steps run once the files are in, each asked
     unless: example_id.h           # skipped when this file is there already
 
 esp32:                             # read by lib-installer only
-  requires:                        # ESP-IDF components the code uses: its REQUIRES
-    - esp_timer
-  cmake:                           # lines of CMake, under the place they go
-    component:                     # the component's CMakeLists.txt, after its register:
-      - idf_build_get_property(example_project PROJECT_DIR)
-      - target_include_directories(${COMPONENT_LIB} PRIVATE "${example_project}")
-                                   # the project's folder, where example_id.h is made
-    before-project:                # the project's CMakeLists.txt, above include(project.cmake).
-                                   # ESP-IDF reads sdkconfig.defaults only while
-                                   # SDKCONFIG_DEFAULTS is unset, so it is named first
-      - if(NOT SDKCONFIG_DEFAULTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
-      - '    set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")'
-      - endif()
-      - list(APPEND SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/example.defaults")
-    after-project: []              # the project's CMakeLists.txt, at its end. {library}
-                                   # in a line is the component's folder, wherever it is
   settings:                        # Kconfig symbols for menuconfig, CONFIG_<name> in the code
     - name: EXAMPLE_PERIOD_MS      # the symbol, started with the library's name
       type: int                    # bool, int, hex or string
@@ -118,3 +102,30 @@ esp32:                             # read by lib-installer only
       type: string
       default: Hello from example
       prompt: What example_hello() prints
+  project:                         # written into the project's own files, each in a
+                                   # block of the library's, written again on every install
+    conf:                          # symbols it needs, in its block of sdkconfig.defaults;
+      A tick of one millisecond:   # a line of the project's own wins. A title, written
+                                   # between two lines of stars above its group
+        - FREERTOS_HZ=1000: vTaskDelay(1) in the loop waits 1 ms, not 10
+                                   # SYMBOL=value, or a symbol alone for =y, and a
+                                   # note, written as a comment above its line
+    cmake:                         # the project's CMakeLists.txt, under the place each
+      before-project:              # line goes: above include(project.cmake). ESP-IDF
+                                   # reads sdkconfig.defaults only while
+                                   # SDKCONFIG_DEFAULTS is unset, so it is named first
+        Your settings in example.defaults, read after sdkconfig.defaults:
+          - if(NOT SDKCONFIG_DEFAULTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")
+          - '    set(SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/sdkconfig.defaults")'
+          - endif()
+          - list(APPEND SDKCONFIG_DEFAULTS "${CMAKE_CURRENT_SOURCE_DIR}/example.defaults")
+                                   # a title over lines of CMake; they take no note
+      after-project: []            # at its end. {library} in a line is the component's
+                                   # folder, wherever it is
+  library:                         # written into its own component
+    requires:                      # ESP-IDF components the code uses: its REQUIRES, a
+      - esp_timer                  # plain list, with no title and no note
+    cmake:                         # the component's CMakeLists.txt, after its register
+      The project's folder, where example_id.h is made:
+        - idf_build_get_property(example_project PROJECT_DIR)
+        - target_include_directories(${COMPONENT_LIB} PRIVATE "${example_project}")
